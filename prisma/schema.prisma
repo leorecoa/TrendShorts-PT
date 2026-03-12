@@ -1,0 +1,84 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Trend {
+  id             String          @id @default(cuid())
+  title          String
+  slug           String          @unique
+  source         String          // 'google_trends', 'youtube', etc
+  language       String          @default("pt-BR")
+  region         String          @default("BR")
+  category       String
+  baselineScore  Float           @default(0)
+  velocityScore  Float           @default(0)
+  freshnessScore Float           @default(0)
+  trendScore     Float           @default(0)
+  sampleKeywords String[]        // Array of strings
+  referenceUrl   String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  snapshots      TrendSnapshot[]
+  ideaGenerations IdeaGeneration[]
+
+  @@index([category])
+  @@index([trendScore])
+}
+
+model TrendSnapshot {
+  id             String   @id @default(cuid())
+  trendId        String
+  collectedAt    DateTime @default(now())
+  rawPayload     Json
+  baselineScore  Float
+  velocityScore  Float
+  freshnessScore Float
+  trendScore     Float
+  trend          Trend    @relation(fields: [trendId], references: [id], onDelete: Cascade)
+
+  @@index([trendId])
+}
+
+model IdeaGeneration {
+  id            String     @id @default(cuid())
+  trendId       String
+  promptVersion String
+  model         String
+  language      String     @default("pt-BR")
+  createdAt     DateTime   @default(now())
+  trend         Trend      @relation(fields: [trendId], references: [id], onDelete: Cascade)
+  items         IdeaItem[]
+
+  @@index([trendId])
+}
+
+model IdeaItem {
+  id                     String         @id @default(cuid())
+  generationId           String
+  title                  String
+  hook                   String
+  summary                String
+  targetAudience         String
+  estimatedViralityReason String
+  keywords               String[]
+  generation             IdeaGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
+
+  @@index([generationId])
+}
+
+model SourceSyncLog {
+  id         String    @id @default(cuid())
+  source     String
+  status     String    // 'success', 'error', 'running'
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  details    String?
+}
